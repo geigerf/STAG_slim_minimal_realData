@@ -13,37 +13,68 @@ from sklearn.utils import shuffle
 import torch.utils.data as data
 import torch        
 from imblearn import over_sampling, under_sampling, combine
+from scipy.ndimage import gaussian_filter
 
 
 class CustomDataLoader(data.Dataset):
     def __init__(self, data, labels, augment=False, nclasses=27,
-                 use_clusters=False, balance=False, split='train'):
+                 balance=False, split='train'):
         self.nclasses = nclasses
         self.data = data
         self.labels = labels
-        self.use_clusters = use_clusters
-        self.dummyrow = torch.zeros((32,1))
-        self.dummyimage = torch.zeros((3, 1, 1))
         self.augment = augment
         self.balance = balance
         self.split = split
         if balance:
-            self.original_data = data.reshape(len(labels), 32*32)
+            self.original_data = data
             self.original_labels = labels
             self.balance_data()
         self.collate_data()
+        
 
     def __len__(self):
         return len(self.labels)
 
 
     def __getitem__(self, idx):
-        pressure = torch.from_numpy(self.collated_data[idx])
+        pressure = self.collated_data[idx].reshape((32,32))
         if self.augment:
-            noise = torch.randn_like(pressure) * 0.015#0.015
+            #noise = torch.randn_like(pressure) * 0.015#0.015
+            noise = np.random.normal(size=pressure.shape) * 0.015
             pressure += noise
+# =============================================================================
+#         pressure = gaussian_filter(pressure, sigma=0.6)
+#         mask = np.array([np.ones(32), np.ones(32), np.ones(32),
+#                  np.concatenate((np.zeros(14), np.ones(18))),
+#                  np.concatenate((np.zeros(14), np.ones(18))),
+#                  np.concatenate((np.zeros(14), np.ones(18))),
+#                  np.ones(32), np.ones(32), np.ones(32),
+#                  np.concatenate((np.zeros(14), np.ones(18))),
+#                  np.ones(32), np.ones(32), np.ones(32),
+#                  np.concatenate((np.zeros(14), np.ones(18))),
+#                  np.concatenate((np.zeros(14), np.ones(18))),
+#                  np.ones(32), np.ones(32), np.ones(32),
+#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3)))]).astype(np.bool)
+#         pressure[~mask] = 0.0
+#         pressure = np.clip(pressure, 0.0, 1.0)
+# =============================================================================
+        pressure = np.expand_dims(pressure, axis=0)
+        pressure = torch.from_numpy(pressure)
         object_id = torch.LongTensor([int(self.collated_labels[idx])])
-        return self.dummyrow, self.dummyimage, pressure, object_id
+        return pressure, object_id
 
 
     def collate_data(self):
@@ -57,16 +88,11 @@ class CustomDataLoader(data.Dataset):
         None.
 
         """
-        self.collated_data = []
-        self.collated_labels = []
-        
-        self.collated_data = np.expand_dims(self.data, axis=1)
+        self.collated_data = self.data
         self.collated_labels = self.labels
-        # shuffling is taken care of by the torch.utils.data.DataLoader
         self.collated_data,\
             self.collated_labels = shuffle(self.collated_data,
                                            self.collated_labels)
-        return
 
         
     def balance_data(self):
@@ -123,23 +149,8 @@ class CustomDataLoader(data.Dataset):
             resampled_data = self.original_data
             resampled_labels = self.original_labels
                 
-        self.data = resampled_data.reshape((len(resampled_labels), 32, 32))
+        self.data = resampled_data
         self.labels = resampled_labels
-
-
-    def cluster_data(self):
-        """
-        Function to group the data into clusters in order to maximize the
-        information content of an input to the network.
-        Not yet implemented because it doesn't seem to be necessary
-
-        Returns
-        -------
-        None.
-
-        """
-        print('test')
-        return
  
     
     def refresh(self):

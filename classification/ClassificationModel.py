@@ -112,15 +112,11 @@ class ClassificationModel(BaseModel):
             self.model.eval()
 
         if self.cuda:
-            image = torch.autograd.Variable(inputs['image'].cuda(),
-                                            requires_grad = isTrain)
             pressure = torch.autograd.Variable(inputs['pressure'].cuda(),
                                                requires_grad = isTrain)
             objectId = torch.autograd.Variable(inputs['objectId'].cuda(),
                                                requires_grad=False) if 'objectId' in inputs else None    
         else:
-            image = torch.autograd.Variable(inputs['image'],
-                                            requires_grad = isTrain)
             pressure = torch.autograd.Variable(inputs['pressure'],
                                                requires_grad = isTrain)
             objectId = torch.autograd.Variable(inputs['objectId'],
