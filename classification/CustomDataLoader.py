@@ -39,38 +39,38 @@ class CustomDataLoader(data.Dataset):
     def __getitem__(self, idx):
         pressure = self.collated_data[idx].reshape((32,32))
         if self.augment:
-            #noise = torch.randn_like(pressure) * 0.015#0.015
-            noise = np.random.normal(size=pressure.shape) * 0.015
+            #noise = torch.randn_like(pressure) * 0.015
+            noise = np.random.normal(size=pressure.shape) * 0.008
             pressure += noise
-# =============================================================================
-#         pressure = gaussian_filter(pressure, sigma=0.6)
-#         mask = np.array([np.ones(32), np.ones(32), np.ones(32),
-#                  np.concatenate((np.zeros(14), np.ones(18))),
-#                  np.concatenate((np.zeros(14), np.ones(18))),
-#                  np.concatenate((np.zeros(14), np.ones(18))),
-#                  np.ones(32), np.ones(32), np.ones(32),
-#                  np.concatenate((np.zeros(14), np.ones(18))),
-#                  np.ones(32), np.ones(32), np.ones(32),
-#                  np.concatenate((np.zeros(14), np.ones(18))),
-#                  np.concatenate((np.zeros(14), np.ones(18))),
-#                  np.ones(32), np.ones(32), np.ones(32),
-#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
-#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
-#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
-#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
-#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
-#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
-#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
-#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
-#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
-#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
-#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
-#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
-#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
-#                  np.concatenate((np.zeros(25), np.ones(4), np.zeros(3)))]).astype(np.bool)
-#         pressure[~mask] = 0.0
-#         pressure = np.clip(pressure, 0.0, 1.0)
-# =============================================================================
+            const_noise = round(random.uniform(-0.008, 0.008), 10)
+            pressure += const_noise
+            pressure = np.clip(pressure, 0.0, 1.0)
+        
+        mask = np.array([np.ones(32), np.ones(32), np.ones(32),
+                         np.concatenate((np.zeros(14), np.ones(18))),
+                         np.concatenate((np.zeros(14), np.ones(18))),
+                         np.concatenate((np.zeros(14), np.ones(18))),
+                         np.ones(32), np.ones(32), np.ones(32),
+                         np.concatenate((np.zeros(14), np.ones(18))),
+                         np.ones(32), np.ones(32), np.ones(32),
+                         np.concatenate((np.zeros(14), np.ones(18))),
+                         np.concatenate((np.zeros(14), np.ones(18))),
+                         np.ones(32), np.ones(32), np.ones(32),
+                         np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+                         np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+                         np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+                         np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+                         np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+                         np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+                         np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+                         np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+                         np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+                         np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+                         np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+                         np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+                         np.concatenate((np.zeros(25), np.ones(4), np.zeros(3))),
+                         np.concatenate((np.zeros(25), np.ones(4), np.zeros(3)))]).astype(np.bool)
+        pressure[~mask] = 0.0
         pressure = np.expand_dims(pressure, axis=0)
         pressure = torch.from_numpy(pressure)
         object_id = torch.LongTensor([int(self.collated_labels[idx])])

@@ -6,6 +6,7 @@ import shutil
 import random
 import argparse
 from imblearn import under_sampling, over_sampling
+from sklearn.model_selection import train_test_split
 
 # Add the parent directory to the path such that all modules can be found
 filePath = os.path.abspath(__file__)
@@ -51,14 +52,25 @@ parser.add_argument('--dropout', type=float, default=0,
 parser.add_argument('--epochs', type=int, default=30,
                     help="Number of epochs to train.")
 parser.add_argument('--kfoldCV', type=int, default=None,
-                    help=("performs 6 fold cross validation.\n"
+                    help=("Performs 6 fold cross validation.\n"
                           + "Only has an effect with --dataSplit 'random'"))
+parser.add_argument('--sessionID', type=int, default=None,
+                    help=("Performs test on the given session [0--4]."
+                          + "The other sessions are used for training.\n"
+                          + "Only has an effect with --dataSplit 'session'. "
+                          + "If no ID is given, intersession cross-validation is performed."))
 parser.add_argument('--dataSplit', type=str, default='random',
                     help=("Can either be 'session' or 'random', relating"
                           + " to the way the data is split into training and test set."))
 parser.add_argument('--makeRepeatable', type=str2bool, nargs='?', const=True,
                     default=False,
                     help="Makes experiments repeatable by using a constant seed.")
+parser.add_argument('--mix', type=str2bool, nargs='?', const=True,
+                    default=False,
+                    help="Mixes real data with MIT data.")
+parser.add_argument('--transferLearning', type=str2bool, nargs='?', const=True,
+                    default=False,
+                    help="Uses transfer learning to improve inter-session accuracy.")
 args = parser.parse_args()
 
 # This line makes only the chosen GPU visible.
@@ -70,7 +82,7 @@ import torch
 import torch.backends.cudnn as cudnn
 
 from CustomDataLoader import CustomDataLoader
-from shared.dataset_tools import load_data
+from shared.dataset_tools import load_data, mix_real_MIT
 
 nClasses = 17
 epochs = args.epochs
@@ -81,6 +93,10 @@ balance_per_epoch = False
 oversample = False
 undersample = ~oversample
 split = args.dataSplit
+if(args.sessionID):
+    intersession_CV = False
+else:
+    intersession_CV = True
 
 metaFile = args.dataset
 if split == 'random':
@@ -383,33 +399,46 @@ class AverageMeter(object):
 if __name__ == "__main__":
     # Load the data with a random stratified train/test split if split='random'
     # or split into the recording sessions if split='session'
-    data_set = load_data(filename=metaFile, kfold=kFoldCV, seed=seed,
-                         undersample=undersample, split=split)
+    if(args.mix):
+        data_set = mix_real_MIT(kfold=kFoldCV, seed=seed,
+                                undersample=undersample, split=split)
+    else:
+        data_set = load_data(filename=metaFile, kfold=kFoldCV, seed=seed,
+                             undersample=undersample, split=split)
 
-    # k fold cross validation
-    if kFoldCV:
-        train_data = data_set[0]
-        train_labels = data_set[1]
-        test_data = data_set[2]
-        test_labels = data_set[3]
-        skf = data_set[4]
-        
-        res_top1 = []
-        res_top3 = []
-        for train_index, val_index in skf.split(train_data, train_labels):
-            dataset = [train_data[train_index], train_labels[train_index],
-                       train_data[val_index], train_labels[val_index]]
-            res = Trainer.make(dataset)
-            res_top1.append(res['test-top1'])
-            res_top3.append(res['test-top3'])
-        
-        print('\nResults for 6 fold cross validation:')
-        print('\tTop 1: mean {:.3f}% std. dev. {:.3f}%'
-              .format(np.mean(res_top1), np.std(res_top1)))
-        print('\tTop 3: mean {:.3f}% std. dev. {:.3f}%'
-              .format(np.mean(res_top3), np.std(res_top3)))
+    if(split == 'random'):
+        # k fold cross validation
+        if kFoldCV:
+            train_data = data_set[0]
+            train_labels = data_set[1]
+            test_data = data_set[2]
+            test_labels = data_set[3]
+            skf = data_set[4]
+            
+            res_top1 = []
+            res_top3 = []
+            for train_index, val_index in skf.split(train_data, train_labels):
+                dataset = [train_data[train_index], train_labels[train_index],
+                           train_data[val_index], train_labels[val_index]]
+                res = Trainer.make(dataset)
+                res_top1.append(res['test-top1'])
+                res_top3.append(res['test-top3'])
+            
+            print('\nResults for 6 fold cross validation:')
+            print('\tTop 1: mean {:.3f}% std. dev. {:.3f}%'
+                  .format(np.mean(res_top1), np.std(res_top1)))
+            print('\tTop 3: mean {:.3f}% std. dev. {:.3f}%'
+                  .format(np.mean(res_top3), np.std(res_top3)))
+        else:
+            train_data = data_set[0]
+            train_labels = data_set[1]
+            test_data = data_set[2]
+            test_labels = data_set[3]
+    
+            data_set = [train_data, train_labels, test_data, test_labels]
+            Trainer.make(data_set)
 
-    elif split == 'session':
+    elif(split == 'session'):
         # The data set returns lists for tactile data and labels. Each element
         # in the list corresponds to a recording session
         # Balance the data once and use the same data for all tests
@@ -434,35 +463,51 @@ if __name__ == "__main__":
                 labels_balanced.append(sampled_labels)
             data_set = [data_balanced, labels_balanced]
         
-        res_top1 = []
-        res_top3 = []
-        for i in range(len(data_set[1])):
-            train_data = np.delete(data_set[0], i)
-            train_data = np.concatenate(train_data)
-            train_labels = np.delete(data_set[1], i)
-            train_labels = np.concatenate(train_labels)
-            test_data = data_set[0][i]
-            test_labels = data_set[1][i]
+        if(intersession_CV):
+            res_top1 = []
+            res_top3 = []
+            for i in range(len(data_set[1])):
+                train_data = np.delete(data_set[0], i)
+                train_data = np.concatenate(train_data)
+                train_labels = np.delete(data_set[1], i)
+                train_labels = np.concatenate(train_labels)
+                test_data = data_set[0][i]
+                test_labels = data_set[1][i]
                 
+                if(args.transferLearning):
+                    # Take 200 (2 second interaction) samples of each class
+                    # from the test data and add it to the training data
+                    test_data, x_tf,\
+                        test_labels, y_tf = train_test_split(test_data,
+                                                             test_labels,
+                                                             test_size=400,
+                                                             stratify=test_labels)
+                    train_data = np.concatenate((train_data, x_tf))
+                    train_labels = np.concatenate((train_labels, y_tf))
+                    
+                dataset = [train_data, train_labels, test_data, test_labels]
+                res = Trainer.make(dataset)
+                res_top1.append(res['test-top1'])
+                res_top3.append(res['test-top3'])
+            
+            print('\nResults for inter-session cross validation:')
+            for i in range(len(data_set[1])):
+                print('\tSession', i,'as test data Top 1: {:.3f}%\t Top 3: {:.3f}%'
+                      .format(res_top1[i], res_top3[i]))
+            print('\t=> Top 1 mean {:.3f}% std. dev. {:.3f}%'
+                  .format(np.mean(res_top1), np.std(res_top1)))
+            print('\t=> Top 3 mean {:.3f}% std. dev. {:.3f}%'
+                  .format(np.mean(res_top3), np.std(res_top3)))      
+        else:
+            # Use specific session for checking the confusion matrix
+            sess = args.sessionID
+            train_data = np.delete(data_set[0], sess)
+            train_data = np.concatenate(train_data)
+            train_labels = np.delete(data_set[1], sess)
+            train_labels = np.concatenate(train_labels)
+            test_data = data_set[0][sess]
+            test_labels = data_set[1][sess]
+            
             dataset = [train_data, train_labels, test_data, test_labels]
             res = Trainer.make(dataset)
-            res_top1.append(res['test-top1'])
-            res_top3.append(res['test-top3'])
         
-        print('\nResults for inter-session cross validation:')
-        for i in range(len(data_set[1])):
-            print('\tSession', i,'as test data Top 1: {:.3f}%\t Top 3: {:.3f}%'
-                  .format(res_top1[i], res_top3[i]))
-        print('\t=> Top 1 mean {:.3f}% std. dev. {:.3f}%'
-              .format(np.mean(res_top1), np.std(res_top1)))
-        print('\t=> Top 3 mean {:.3f}% std. dev. {:.3f}%'
-              .format(np.mean(res_top3), np.std(res_top3)))
-    
-    else:
-        train_data = data_set[0]
-        train_labels = data_set[1]
-        test_data = data_set[2]
-        test_labels = data_set[3]
-
-        data_set = [train_data, train_labels, test_data, test_labels]
-        Trainer.make(data_set)
