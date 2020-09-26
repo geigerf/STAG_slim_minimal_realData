@@ -36,3 +36,8 @@ Imported standard packages:
 ## Additional information
 
 Running `python STAG_slim_minimal_realData --help` in a python environment with the required packages will give a list of possible arguments.
+
+
+## Contact
+
+Please email any questions or comments to [geigerf@student.ethz.ch](geigerf@student.ethz.ch).
