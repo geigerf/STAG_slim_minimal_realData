@@ -9,8 +9,8 @@ The goal of this neural network is to classify 17 different objects from the dat
 
 ## System requirements
 
-This lists the installed python packages and versions. However, it is not
-absolutely necessary to install it with exactly the same versions.
+This lists the installed python packages and versions.
+However, it is not absolutely necessary to install it with exactly the same versions.
 Consult this list if there are some broken dependencies in your environment.
 
 Required packages:
@@ -35,5 +35,4 @@ Imported standard packages:
 
 ## Additional information
 
-Running *python STAG_slim_minimal_realData --help* in a python environment with the required
-packages will give a list of possible arguments.
+Running *python STAG_slim_minimal_realData --help* in a python environment with the required packages will give a list of possible arguments.
