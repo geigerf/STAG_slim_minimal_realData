@@ -2,10 +2,9 @@
 
 ## Introduction
 
-This is a minimal implementation of the adapted neural network that was
-found to have the best size-accuracy trade-off.
-It is minimal in the sense that it tries to reduce the number of tunable
-variables to a minimum.
+This is a minimal implementation of the adapted neural network that was found to have the best size-accuracy trade-off.
+It is minimal in the sense that it tries to reduce the number of tunable variables to a minimum.
+The goal of this neural network is to classify 17 different objects from the data that was collected with a self-made STAG.
 
 
 ## System requirements
