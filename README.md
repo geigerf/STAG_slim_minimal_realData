@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This is a minimal implementation of the adapted neural network that was found to have the best size-accuracy trade-off.
+This is a minimal implementation of the adapted neural network (based on _Subramanian Sundaram, Petr Kellnhofer, Yunzhu Li, Jun-Yan Zhu, Antonio Torralba and Wojciech Matusik. "Learning the signatures of the human grasp using a scalable tactile glove". Nature, 2019._) that was found to have the best size-accuracy trade-off.
 It is minimal in the sense that it tries to reduce the number of tunable variables to a minimum.
 The goal of this neural network is to classify 17 different objects from the data that was collected with a self-made STAG.
 
